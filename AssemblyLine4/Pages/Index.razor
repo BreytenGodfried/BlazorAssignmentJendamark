@@ -1,0 +1,340 @@
+﻿@page "/"
+@using AssemblyLine4.Data
+@using AssemblyLine4.Services
+@using BlazorInputFile
+@using System.IO
+@inherits OwningComponentBase<AssemblyLineServices>
+
+<div class="container">
+
+    <div id="Title">
+        <h1 class="text-center text-white">Operation Page</h1>
+        <h4 class="text-center text-white">Current Operation</h4>
+    </div>
+
+    <div class="text-center mt-1">
+        <button class="btn btn-primary" @onclick='()=>Showpopup("Add Op")'>Add Operation</button>
+
+
+
+        <button class="btn btn-primary" @onclick='()=>Showpopup("Add Dev")'>Add Device</button>
+
+    </div>
+
+    <!--Adding Operation-->
+    @if ((popup) && (modal == "Add Op"))
+    {
+        <div class="modal" tabindex="-1" role="dialog" style="display:block;">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">ADD OPERATION</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="Closepopup">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <EditForm Model="op" OnValidSubmit="@SaveOp">
+                        <DataAnnotationsValidator />
+                        <div class="modal-body">
+
+                            <ValidationSummary />
+                            <div class="form-group">
+                                <label> Operation Name: </label>
+                                <input class="custom-control" type="text" placeholder="Operation Name" @bind-value="op.Name">
+                            </div>
+                            <div class="form-group">
+                                <label>Device: </label>
+                                <select class="custom-select" @bind="op.DeviceID">
+                                    @foreach (var dev in DevList)
+                                    {
+                                        <option value="@dev.DeviceID">@dev.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Image Data: </label>
+                                <InputFile OnChange="HandleFileSelected"></InputFile>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Add Operation</button>
+                        </div>
+                    </EditForm>
+
+
+                </div>
+            </div>
+        </div>
+
+    }
+
+    <!--Adding Device-->
+    @if ((popup) && (modal == "Add Dev"))
+    {
+        <div class="modal" tabindex="-1" role="dialog" style="display:block;">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">ADD DEVICE</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="Closepopup">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <EditForm Model="@dev" OnValidSubmit="()=>SaveDev(op.OperationID)">
+                        <DataAnnotationsValidator />
+                        <div class="modal-body">
+                            <ValidationSummary />
+                            <label>Operation Name</label><br />
+                            <input type="text" placeholder="Device Name" @bind="dev.Name" /><br />
+
+                            <div class="form-group">
+                                <label>Device:</label><br />
+                                <select class="custom-select" @bind="dev.DeviceType">
+                                    @foreach (var type in Enum.GetValues(typeof(DeviceType)))
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Add Device</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (OpList is null)
+    {
+        <div class="spinner-border"></div>
+        <br />
+    }
+    else
+    {
+        <table class="table table-striped bg-light ml-5 text-center">
+            <thead>
+                <tr>
+                    <th>Image Data</th>
+                    <th>Order Of Operation</th>
+                    <th>Name</th>
+                    <th>Device</th>
+                    <th>Type</th>
+                    <th>Delete</th>
+                    <th>Edit</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in OpList)
+                {
+                    <tr>
+                        <td><img src="@convertImageToDisplay(@c.ImageData)" width="75" height="75" @onclick="()=>Showpopup(c.Name+c.OperationID.ToString())" /></td>
+
+                        <!--Image Data Enlarge Model-->
+                        @if ((popup) && (modal == c.Name + c.OperationID.ToString()))
+                        {
+                            <div class="modal" tabindex="-1" role="dialog" style="display:block;">
+                                <div class="modal-dialog modal-lg" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">@c.Name</h5>
+                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="Closepopup">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p><img src="@convertImageToDisplay(@c.ImageData)" width="700" height="800" /></p>
+                                        </div>
+                                        <div class="modal-footer">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <td>@c.OrderInWhichToPerform</td>
+                        <td>@c.Name</td>
+                        @if (c.Device.DeviceID is 0)
+                        {
+                            <td> </td>
+                            <td> </td>
+                        }
+                        else
+                        {
+                            foreach (var d in DevList)
+                            {
+                                if (c.Device.DeviceID == d.DeviceID)
+                                {
+                                    <td>@d.Name</td>
+                                    <td>@d.DeviceType</td>
+                                }
+                            }
+                        }
+
+                        <td><button class="btn btn-danger" @onclick='()=>Showpopup(c.OperationID.ToString())'>Remove</button></td>
+
+                        <td><button class="btn btn-primary" @onclick='()=>Showpopup(c.OperationID.ToString()+c.Name)'>Edit Device</button></td>
+                    </tr>
+                    <!--Deleting Modal-->
+                    @if ((popup) && (modal == c.OperationID.ToString()))
+                    {
+                        <div class="modal" tabindex="-1" role="dialog" style="display:block;">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">REMOVE OPERATION</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="Closepopup">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <EditForm Model="op" OnValidSubmit="()=>DeleteOp(c.OperationID)">
+                                        <div class="modal-body">
+                                            <p>Are you Sure you want to Delete @c.Name</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="submit" class="btn btn-danger">DELETE</button>
+                                        </div>
+                                    </EditForm>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!--Editing Operation-->
+                    @if ((popup) && (modal == c.OperationID.ToString() + c.Name))
+                    {
+                        <div class="modal" tabindex="-1" role="dialog" style="display:block;">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">EDIT OPERATION</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" @onclick="Closepopup">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <EditForm Model="@c" OnValidSubmit="()=>EditOp(c.OperationID)">
+
+                                        <DataAnnotationsValidator />
+                                        <div class="modal-body">
+                                            <ValidationSummary />
+                                            <div class="form-group">
+                                                <label> Device: </label>
+                                                <select class="form-control" @bind="c.DeviceID">
+                                                    @foreach (var d in DevList)
+                                                    {
+                                                        if (c.DeviceID == d.DeviceID)
+                                                        {
+                                                            <option selected value="@d.DeviceID">@d.Name</option>
+                                                        }
+                                                        <option value="@d.DeviceID">@d.Name</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="submit" class="btn btn-primary">Edit Operation</button>
+                                        </div>
+                                    </EditForm>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </tbody>
+        </table>
+    }
+
+
+
+</div>
+
+@code{
+    Operation op = new Operation();
+    Operation opClone = new Operation();
+
+    Device dev = new Device();
+    Device devClone = new Device();
+
+    private List<Operation> OpList;
+    private List<Device> DevList;
+
+    string modal = "";
+    public byte[] ImgUploaded { get; set; }
+    bool popup = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        OpList = await Service.GetOperation();
+        DevList = await Service.GetDevices();
+    }
+
+    void Showpopup(string mod)
+    {
+        modal = mod;
+        popup = true;
+
+    }
+
+    void Closepopup()
+    {
+        popup = false;
+        modal = "";
+    }
+
+    public async Task SaveOp()
+    {
+        op.ImageData = ImgUploaded;
+        Service.Insertrec(op);
+        popup = false;
+        op = opClone;
+        await OnInitializedAsync();
+    }
+
+    public async Task SaveDev(int opid)
+    {
+        Service.InsertDev(dev);
+
+        popup = false;
+        dev = devClone;
+        await OnInitializedAsync();
+    }
+
+    public async Task DeleteOp(int id)
+    {
+        Service.Deleterec(id);
+        popup = false;
+        await OnInitializedAsync();
+    }
+
+    void EditOp(int id)
+    {
+        op.ImageData = ImgUploaded;
+        Service.Editrec(op, id);
+        popup = false;
+    }
+
+    async Task HandleFileSelected(IFileListEntry[] files)
+    {
+        var file = files.FirstOrDefault();
+        if (file != null)
+        {
+            var ms = new MemoryStream();
+            await file.Data.CopyToAsync(ms);
+            ImgUploaded = ms.ToArray();
+        }
+
+    }
+
+    string convertImageToDisplay(byte[] image)
+    {
+        if (image != null)
+        {
+            var base64 = Convert.ToBase64String(image);
+            var fs = string.Format("data:image/jpg;base64, {0}", base64);
+            return fs;
+        }
+        return "";
+    }
+}
